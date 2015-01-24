@@ -203,7 +203,7 @@
       <PreprocessorDefinitions>WIN64;_WIN64;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>copy /y "$(TargetDir)$(TargetFileName)" "$(ProjectDir)..\..\..\..\..\data\post\bypassuac-$(PlatformTarget).exe"</Command>
+      <Command>copy /y "$(TargetDir)$(TargetFileName)" "$(ProjectDir)\data\post\bypassuac-$(PlatformTarget).exe"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

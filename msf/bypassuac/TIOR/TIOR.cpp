@@ -106,13 +106,13 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	HANDLE waiters[4] = {pi.hProcess, in.Thread, out.Thread, err.Thread} ;
 	//
-	//	Waiting for eny handle to be freed. 
+	//	Waiting for any handle to be freed. 
 	//	Either some IO thread will die or process will be oevered.
 	//
 	WaitForMultipleObjects( 4, waiters, FALSE, INFINITE );
 
 	//
-	//	Even if process was overed, we need to be sure that we readed all data from the redirected pipe.
+	//	Even if process was over, we need to be sure that we read all data from the redirected pipe.
 	//	Thats why we wait again for some period of time reading died process's output untill the end.
 	//
 	WaitForMultipleObjects( 3, waiters + 1, FALSE, 1000 );
