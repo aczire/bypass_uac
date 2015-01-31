@@ -15,7 +15,7 @@ class Metasploit3 < Msf::Exploit::Local
 
   def initialize(info={})
     super( update_info( info,
-      'Name'          => 'Windows Escalate UAC Protection Bypass (In Memory Injection)',
+      'Name'          => 'Windows Escalate UAC Protection Bypass',
       'Description'   => %q{
         This module will bypass Windows UAC.
       },
