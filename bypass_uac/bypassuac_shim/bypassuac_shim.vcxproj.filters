@@ -24,7 +24,7 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="apphlp.h">
+    <ClInclude Include="bypassuac_shim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -32,7 +32,7 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="elevator.cpp">
+    <ClCompile Include="bypassuac_shim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

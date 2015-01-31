@@ -80,7 +80,7 @@
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <IntDir>$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>$(ProjectName)-x86</TargetName>
+    <TargetName>$(ProjectName)-x86_shim</TargetName>
     <IncludePath>$(VCInstallDir)include;$(VCInstallDir)atlmfc\include;$(WindowsSDK_IncludePath);..\..\..\ReflectiveDLLInjection\common\;..\..\..\ReflectiveDLLInjection\dll\src\</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -194,6 +194,7 @@ copy /y "$(TargetDir)$(TargetFileName)" "..\data\post\"</Command>
     <ClCompile Include="src\ReflectiveLoader.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\apphlp.h" />
     <ClInclude Include="src\Exploit.h" />
     <ClInclude Include="src\ReflectiveDLLInjection.h" />
     <ClInclude Include="src\ReflectiveLoader.h" />
